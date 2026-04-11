@@ -1,4 +1,5 @@
 import { PROVIDERS } from './providers';
+import { type CachedFile } from './file-cache';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { parsePhoneNumber } from 'libphonenumber-js';
@@ -215,61 +216,50 @@ async function cleanContactWithAI(
   return { nombre: firstName, apellido: lastName, empresa: company, cargo: title, whatsapp: validPhone, email: cleanEmail, confidence };
 }
 
-export function parseFile(file: File): Promise<Record<string, any>[]> {
+export function parseFile(file: CachedFile): Promise<Record<string, any>[]> {
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
   if (ext === 'csv' || ext === 'txt') {
+    const text = new TextDecoder().decode(file.content);
     return new Promise((res, rej) =>
-      Papa.parse(file, { header: true, skipEmptyLines: true, complete: r => res(r.data as Record<string, any>[]), error: rej })
+      Papa.parse(text, { header: true, skipEmptyLines: true, complete: r => res(r.data as Record<string, any>[]), error: rej })
     );
   }
   if (ext === 'xlsx' || ext === 'xls') {
-    return new Promise((res, rej) => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        try {
-          const wb = XLSX.read(new Uint8Array(e.target!.result as ArrayBuffer), { type: 'array' });
-          const rows: Record<string, any>[] = [];
-          wb.SheetNames.forEach(n => rows.push(...(XLSX.utils.sheet_to_json(wb.Sheets[n]) as Record<string, any>[])));
-          res(rows);
-        } catch (err) { rej(err); }
-      };
-      reader.onerror = rej;
-      reader.readAsArrayBuffer(file);
-    });
+    try {
+      const wb = XLSX.read(new Uint8Array(file.content), { type: 'array' });
+      const rows: Record<string, any>[] = [];
+      wb.SheetNames.forEach(n => rows.push(...(XLSX.utils.sheet_to_json(wb.Sheets[n]) as Record<string, any>[])));
+      return Promise.resolve(rows);
+    } catch (err) {
+      return Promise.reject(err);
+    }
   }
   if (ext === 'vcf' || ext === 'vcard') {
-    return new Promise((res, rej) => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        const text = e.target!.result as string;
-        const vcards = text.split(/END:VCARD/i).filter(p => p.includes('BEGIN:VCARD'));
-        const rows: Record<string, any>[] = [];
-        vcards.forEach(v => {
-          const obj: Record<string, any> = {};
-          let fn = '';
-          v.split(/\r?\n/).forEach(l => {
-            const [prop, ...rest] = l.split(':');
-            const val = rest.join(':').trim();
-            const p = prop.toUpperCase().split(';')[0];
-            if (p === 'FN') fn = val;
-            else if (p === 'N') { const parts = val.split(';'); obj.last_name = parts[0]; obj.first_name = parts[1]; }
-            else if (p === 'ORG') obj.empresa = val;
-            else if (p === 'TITLE') obj.cargo = val;
-            else if (p === 'TEL') obj.phone = val;
-            else if (p === 'EMAIL') obj.email = val;
-          });
-          if (!obj.first_name && fn) {
-            const parts = fn.trim().split(/\s+/);
-            obj.first_name = parts.slice(0, -1).join(' ');
-            obj.last_name = parts[parts.length - 1] || '';
-          }
-          rows.push(obj);
-        });
-        res(rows);
-      };
-      reader.onerror = rej;
-      reader.readAsText(file);
+    const text = new TextDecoder().decode(file.content);
+    const vcards = text.split(/END:VCARD/i).filter(p => p.includes('BEGIN:VCARD'));
+    const rows: Record<string, any>[] = [];
+    vcards.forEach(v => {
+      const obj: Record<string, any> = {};
+      let fn = '';
+      v.split(/\r?\n/).forEach(l => {
+        const [prop, ...rest] = l.split(':');
+        const val = rest.join(':').trim();
+        const p = prop.toUpperCase().split(';')[0];
+        if (p === 'FN') fn = val;
+        else if (p === 'N') { const parts = val.split(';'); obj.last_name = parts[0]; obj.first_name = parts[1]; }
+        else if (p === 'ORG') obj.empresa = val;
+        else if (p === 'TITLE') obj.cargo = val;
+        else if (p === 'TEL') obj.phone = val;
+        else if (p === 'EMAIL') obj.email = val;
+      });
+      if (!obj.first_name && fn) {
+        const parts = fn.trim().split(/\s+/);
+        obj.first_name = parts.slice(0, -1).join(' ');
+        obj.last_name = parts[parts.length - 1] || '';
+      }
+      rows.push(obj);
     });
+    return Promise.resolve(rows);
   }
   return Promise.resolve([]);
 }
@@ -326,7 +316,7 @@ export function deduplicateContacts(contacts: Contact[], threshold = 0.85): Cont
 }
 
 export interface ProcessOptions {
-  files: File[];
+  files: CachedFile[];
   apiKeys: Record<string, string[]>;
   useAIForMapping: boolean;
   useAIForCleaning: boolean;
