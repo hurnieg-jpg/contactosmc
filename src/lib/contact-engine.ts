@@ -229,7 +229,7 @@ export function parseFile(file: File): Promise<Record<string, any>[]> {
         try {
           const wb = XLSX.read(new Uint8Array(e.target!.result as ArrayBuffer), { type: 'array' });
           const rows: Record<string, any>[] = [];
-          wb.SheetNames.forEach(n => rows.push(...XLSX.utils.sheet_to_json(wb.Sheets[n])));
+          wb.SheetNames.forEach(n => rows.push(...(XLSX.utils.sheet_to_json(wb.Sheets[n]) as Record<string, any>[])));
           res(rows);
         } catch (err) { rej(err); }
       };
