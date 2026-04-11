@@ -34,11 +34,15 @@ export const Route = createRootRoute({
       { title: "ContactUnifier AI Pro" },
       { name: "description", content: "Unifica, limpia y deduplica contactos con consenso multi-IA" },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "ContactUnifier AI Pro" },
+      { property: "og:description", content: "Unifica, limpia y deduplica contactos con consenso multi-IA" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "ContactUnifier AI Pro" },
+      { name: "twitter:description", content: "Unifica, limpia y deduplica contactos con consenso multi-IA" },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/954fa256-0046-4ec5-ab97-3d54cd16f79d/id-preview-1ba60299--7cfa1e34-6fef-488f-a492-8f10ccecb2c4.lovable.app-1775925388239.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/954fa256-0046-4ec5-ab97-3d54cd16f79d/id-preview-1ba60299--7cfa1e34-6fef-488f-a492-8f10ccecb2c4.lovable.app-1775925388239.png" },
     ],
     links: [
       {
