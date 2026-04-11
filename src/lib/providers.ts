@@ -52,10 +52,10 @@ export const PROVIDERS: Record<string, AIProvider> = {
   },
   cohere: {
     id: 'cohere', name: 'Cohere', emoji: '🟣',
-    endpoint: 'https://api.cohere.ai/v1/chat',
+    endpoint: 'https://api.cohere.ai/v2/chat',
     headers: k => ({ 'Authorization': `Bearer ${k}`, 'Content-Type': 'application/json' }),
-    body: msgs => JSON.stringify({ model: 'command-r-plus', messages: msgs, temperature: 0.1 }),
-    parse: d => d.message.content[0].text
+    body: msgs => JSON.stringify({ model: 'command-r-plus-08-2024', messages: msgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content })), temperature: 0.1, response_format: { type: 'json_object' } }),
+    parse: d => d.message?.content?.[0]?.text || d.text
   },
   together: {
     id: 'together', name: 'Together', emoji: '⚫',
@@ -89,7 +89,7 @@ export const PROVIDERS: Record<string, AIProvider> = {
     id: 'xai', name: 'xAI', emoji: '❌',
     endpoint: 'https://api.x.ai/v1/chat/completions',
     headers: k => ({ 'Authorization': `Bearer ${k}`, 'Content-Type': 'application/json' }),
-    body: msgs => JSON.stringify({ model: 'grok-beta', messages: msgs, temperature: 0.1, response_format: { type: 'json_object' } }),
+    body: msgs => JSON.stringify({ model: 'grok-3-mini', messages: msgs, temperature: 0.1, response_format: { type: 'json_object' } }),
     parse: d => d.choices[0].message.content
   },
   openrouter: {
