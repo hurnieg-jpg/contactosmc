@@ -2,22 +2,31 @@ import { useCallback, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FolderOpen, FileText, Upload, X } from 'lucide-react';
+import { type CachedFile, cacheFiles } from '@/lib/file-cache';
 
 interface FilesTabProps {
-  files: File[];
-  onFilesChange: (files: File[]) => void;
+  files: CachedFile[];
+  onFilesChange: (files: CachedFile[]) => void;
 }
 
 const VALID_EXTENSIONS = /\.(csv|txt|xlsx|xls|vcf|vcard)$/i;
 
 export function FilesTab({ files, onFilesChange }: FilesTabProps) {
   const [dragOver, setDragOver] = useState(false);
+  const [loading, setLoading] = useState(false);
   const folderRef = useRef<HTMLInputElement>(null);
   const filesRef = useRef<HTMLInputElement>(null);
 
-  const addFiles = useCallback((fileList: FileList) => {
+  const addFiles = useCallback(async (fileList: FileList) => {
     const valid = Array.from(fileList).filter(f => VALID_EXTENSIONS.test(f.name));
-    if (valid.length) onFilesChange([...files, ...valid]);
+    if (!valid.length) return;
+    setLoading(true);
+    try {
+      const cached = await cacheFiles(valid);
+      onFilesChange([...files, ...cached]);
+    } finally {
+      setLoading(false);
+    }
   }, [files, onFilesChange]);
 
   const removeFile = (idx: number) => {
@@ -36,14 +45,14 @@ export function FilesTab({ files, onFilesChange }: FilesTabProps) {
       >
         <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-foreground mb-2">
-          Arrastrá carpeta o archivos
+          {loading ? 'Cargando archivos en memoria...' : 'Arrastrá carpeta o archivos'}
         </h3>
         <p className="text-sm text-muted-foreground mb-6">CSV, Excel, VCF, TXT</p>
         <div className="flex gap-3 justify-center">
-          <Button variant="outline" onClick={e => { e.stopPropagation(); folderRef.current?.click(); }}>
+          <Button variant="outline" disabled={loading} onClick={e => { e.stopPropagation(); folderRef.current?.click(); }}>
             <FolderOpen className="h-4 w-4 mr-2" /> Seleccionar carpeta
           </Button>
-          <Button variant="outline" onClick={e => { e.stopPropagation(); filesRef.current?.click(); }}>
+          <Button variant="outline" disabled={loading} onClick={e => { e.stopPropagation(); filesRef.current?.click(); }}>
             <FileText className="h-4 w-4 mr-2" /> Seleccionar archivos
           </Button>
         </div>

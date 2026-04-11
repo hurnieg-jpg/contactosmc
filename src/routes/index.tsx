@@ -8,6 +8,7 @@ import { ResultsTab } from "@/components/ResultsTab";
 import { ExportTab } from "@/components/ExportTab";
 import { ReviewModal } from "@/components/ReviewModal";
 import { loadApiKeys, saveApiKeys, type Contact } from "@/lib/contact-engine";
+import { type CachedFile } from "@/lib/file-cache";
 import { Badge } from "@/components/ui/badge";
 import { Key, FolderOpen, Zap, Users, Download } from "lucide-react";
 
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/")({
 
 function ContactUnifier() {
   const [apiKeys, setApiKeys] = useState(() => loadApiKeys());
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<CachedFile[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [lowConfidence, setLowConfidence] = useState<Contact[]>([]);
   const [showReview, setShowReview] = useState(false);
