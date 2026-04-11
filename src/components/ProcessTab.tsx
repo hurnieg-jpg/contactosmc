@@ -2,10 +2,11 @@ import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { processContacts, type Contact, type LogEntry } from '@/lib/contact-engine';
+import { type CachedFile } from '@/lib/file-cache';
 import { Zap, Pause, Play, StopCircle, Trash2, RotateCcw } from 'lucide-react';
 
 interface ProcessTabProps {
-  files: File[];
+  files: CachedFile[];
   apiKeys: Record<string, string[]>;
   onComplete: (contacts: Contact[], lowConfidence: Contact[]) => void;
   onClear: () => void;
