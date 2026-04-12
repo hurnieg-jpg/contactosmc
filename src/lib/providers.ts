@@ -24,17 +24,7 @@ export const PROVIDERS: Record<string, AIProvider> = {
     body: msgs => JSON.stringify({ model: 'gpt-4o-mini', messages: msgs, temperature: 0.1, response_format: { type: 'json_object' } }),
     parse: d => d.choices[0].message.content
   },
-  claude: {
-    id: 'claude', name: 'Claude', emoji: '🟠',
-    endpoint: 'https://api.anthropic.com/v1/messages',
-    headers: k => ({ 'x-api-key': k, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' }),
-    body: msgs => {
-      const sys = msgs.find(m => m.role === 'system')?.content || '';
-      const usr = msgs.find(m => m.role === 'user')?.content || '';
-      return JSON.stringify({ model: 'claude-3-haiku-20240307', max_tokens: 1024, system: sys, messages: [{ role: 'user', content: usr }] });
-    },
-    parse: d => d.content[0].text
-  },
+  // Claude omitido: CORS bloquea llamadas directas desde el navegador
   gemini: {
     id: 'gemini', name: 'Gemini', emoji: '🟡',
     endpoint: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
@@ -54,7 +44,14 @@ export const PROVIDERS: Record<string, AIProvider> = {
     id: 'cohere', name: 'Cohere', emoji: '🟣',
     endpoint: 'https://api.cohere.ai/v2/chat',
     headers: k => ({ 'Authorization': `Bearer ${k}`, 'Content-Type': 'application/json' }),
-    body: msgs => JSON.stringify({ model: 'command-r-plus-08-2024', messages: msgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content })), temperature: 0.1, response_format: { type: 'json_object' } }),
+    body: msgs => {
+      const system = msgs.find(m => m.role === 'system')?.content;
+      const userMsgs = msgs.filter(m => m.role !== 'system').map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }));
+      if (userMsgs.length === 0) userMsgs.push({ role: 'user', content: system || 'respond with {}' });
+      const body: any = { model: 'command-r-plus-08-2024', messages: userMsgs, temperature: 0.1, response_format: { type: 'json_object' } };
+      if (system && userMsgs[0].content !== system) body.preamble = system;
+      return JSON.stringify(body);
+    },
     parse: d => d.message?.content?.[0]?.text || d.text
   },
   together: {

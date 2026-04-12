@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ApiKeysTab } from "@/components/ApiKeysTab";
 import { FilesTab } from "@/components/FilesTab";
@@ -23,7 +23,12 @@ export const Route = createFileRoute("/")({
 });
 
 function ContactUnifier() {
-  const [apiKeys, setApiKeys] = useState(() => loadApiKeys());
+  const [apiKeys, setApiKeys] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    const saved = loadApiKeys();
+    if (Object.keys(saved).length > 0) setApiKeys(saved);
+  }, []);
   const [files, setFiles] = useState<CachedFile[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [lowConfidence, setLowConfidence] = useState<Contact[]>([]);
