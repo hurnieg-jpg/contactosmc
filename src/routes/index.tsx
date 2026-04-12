@@ -24,16 +24,11 @@ export const Route = createFileRoute("/")({
 
 function ContactUnifier() {
   const [apiKeys, setApiKeys] = useState<Record<string, string[]>>({});
-  const [initialized, setInitialized] = useState(false);
 
-  // Load API keys after hydration to avoid SSR mismatch
-  if (typeof window !== 'undefined' && !initialized) {
+  useEffect(() => {
     const saved = loadApiKeys();
-    if (Object.keys(saved).length > 0) {
-      setApiKeys(saved);
-    }
-    setInitialized(true);
-  }
+    if (Object.keys(saved).length > 0) setApiKeys(saved);
+  }, []);
   const [files, setFiles] = useState<CachedFile[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [lowConfidence, setLowConfidence] = useState<Contact[]>([]);
