@@ -146,9 +146,12 @@ async function getColumnMapping(
 ): Promise<Record<string, string>> {
   if (!useAI) return heuristicMapping(headers);
   onLog?.(createLog('🤖 Solicitando mapeo de columnas...'));
-  const prompt = `Dado estos encabezados: ${JSON.stringify(headers)}. Devuelve SOLO un JSON con: "firstName","lastName","email","phone","company","title". Asigna el nombre exacto del encabezado.`;
+  const prompt = `Dado estos encabezados: ${JSON.stringify(headers)}. Devuelve SOLO un JSON con: "firstName","lastName","email","phone","company","title". Asigna el nombre exacto del encabezado que corresponda a cada campo. Si no hay coincidencia, deja vacío.`;
   try {
-    const res = await callAIConsensus(apiKeys, [{ role: 'user', content: prompt }], ['firstName', 'lastName', 'email', 'phone', 'company', 'title'], onLog);
+    const res = await callAIConsensus(apiKeys, [
+      { role: 'system', content: 'Eres un asistente que responde SOLO con JSON válido. Sin texto extra.' },
+      { role: 'user', content: prompt }
+    ], ['firstName', 'lastName', 'email', 'phone', 'company', 'title'], onLog);
     onLog?.(createLog(`📋 Mapeo consensuado (confianza: ${res._confidence?.toFixed(2)})`, 'ok'));
     return res;
   } catch {
