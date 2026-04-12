@@ -13,6 +13,7 @@ export interface Contact {
   whatsapp: string;
   email: string;
   confidence: number;
+  source?: string;
 }
 
 export interface LogEntry {
@@ -30,7 +31,12 @@ function createLog(message: string, type: LogEntry['type'] = 'info'): LogEntry {
 }
 
 function capitalize(s: string): string {
+  if (!s) return '';
   return s.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
+}
+
+function normalizeStr(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
 export function loadApiKeys(): Record<string, string[]> {
@@ -45,18 +51,40 @@ export function saveApiKeys(keys: Record<string, string[]>) {
   localStorage.setItem('cu_v16', JSON.stringify(keys));
 }
 
+// Track which provider keys have failed with permanent errors
+const failedProviderKeys = new Map<string, Set<string>>();
+
+function markKeyFailed(providerId: string, key: string) {
+  if (!failedProviderKeys.has(providerId)) failedProviderKeys.set(providerId, new Set());
+  failedProviderKeys.get(providerId)!.add(key);
+}
+
+function isKeyFailed(providerId: string, key: string): boolean {
+  return failedProviderKeys.get(providerId)?.has(key) || false;
+}
+
+export function resetFailedKeys() {
+  failedProviderKeys.clear();
+}
+
 export async function callAIConsensus(
   apiKeys: Record<string, string[]>,
   messages: Array<{ role: string; content: string }>,
   expectedKeys: string[],
   onLog?: LogCallback
 ): Promise<Record<string, any>> {
-  const activeProviders = Object.entries(PROVIDERS).filter(([id]) => apiKeys[id]?.length > 0);
-  if (activeProviders.length === 0) throw new Error('No hay APIs configuradas');
+  const activeProviders = Object.entries(PROVIDERS).filter(([id]) => {
+    const keys = apiKeys[id] || [];
+    // Filter out providers where all keys have failed
+    const validKeys = keys.filter(k => !isKeyFailed(id, k));
+    return validKeys.length > 0;
+  });
+  if (activeProviders.length === 0) throw new Error('No hay APIs configuradas o todas las claves fallaron');
 
   const results: Array<{ provider: string; data: Record<string, any> }> = [];
   const promises = activeProviders.map(async ([pid, p]) => {
-    const keys = apiKeys[pid] || [];
+    const keys = (apiKeys[pid] || []).filter(k => !isKeyFailed(pid, k));
+    if (keys.length === 0) return;
     onLog?.(createLog(`🔍 Intentando ${p.emoji} ${p.name} (${keys.length} clave(s))...`));
     for (const key of keys) {
       const masked = key.slice(0, 5) + '...' + key.slice(-3);
@@ -75,7 +103,12 @@ export async function callAIConsensus(
         if (!res.ok) {
           const errText = await res.text();
           onLog?.(createLog(`⚠️ ${p.name} (${masked}): HTTP ${res.status} - ${errText.substring(0, 100)}`, 'warn'));
-          if (res.status === 429 || res.status === 403 || res.status === 401 || res.status === 402 || res.status === 412) continue;
+          // Permanent failures - mark key as failed
+          if (res.status === 401 || res.status === 402 || res.status === 403 || res.status === 412) {
+            markKeyFailed(pid, key);
+            continue;
+          }
+          if (res.status === 429) continue; // rate limit, try next key
           throw new Error(`HTTP ${res.status}`);
         }
         const data = await res.json();
@@ -96,6 +129,10 @@ export async function callAIConsensus(
         return;
       } catch (e: any) {
         if (e.name === 'AbortError') onLog?.(createLog(`⏰ ${p.name} timeout`, 'warn'));
+        else if (e.message === 'Failed to fetch') {
+          onLog?.(createLog(`🚫 ${p.name}: CORS bloqueado`, 'warn'));
+          markKeyFailed(pid, key);
+        }
         else onLog?.(createLog(`❌ ${p.name} error: ${e.message}`, 'err'));
       }
     }
@@ -123,20 +160,23 @@ export async function callAIConsensus(
 function heuristicMapping(headers: string[]): Record<string, string> {
   const map: Record<string, string> = {};
   const syn: Record<string, string[]> = {
-    firstName: ['first', 'given', 'nombre'],
-    lastName: ['last', 'family', 'apellido'],
-    email: ['e-mail', 'email', 'correo'],
-    phone: ['phone', 'tel', 'celular', 'whatsapp'],
-    company: ['organization', 'company', 'empresa'],
-    title: ['title', 'cargo', 'puesto']
+    firstName: ['first', 'given', 'nombre', 'name', 'primer'],
+    lastName: ['last', 'family', 'apellido', 'surname'],
+    email: ['e-mail', 'email', 'correo', 'mail'],
+    phone: ['phone', 'tel', 'celular', 'whatsapp', 'movil', 'mobile', 'cell'],
+    company: ['organization', 'company', 'empresa', 'org', 'compañia'],
+    title: ['title', 'cargo', 'puesto', 'job', 'position', 'rol']
   };
   headers.forEach(h => {
-    const hl = h.toLowerCase();
+    const hl = normalizeStr(h);
     for (const [k, arr] of Object.entries(syn))
       if (!map[k] && arr.some(s => hl.includes(s))) map[k] = h;
   });
   return map;
 }
+
+// Cache mappings per header signature to avoid redundant AI calls
+const mappingCache = new Map<string, Record<string, string>>();
 
 async function getColumnMapping(
   headers: string[],
@@ -144,7 +184,18 @@ async function getColumnMapping(
   apiKeys: Record<string, string[]>,
   onLog?: LogCallback
 ): Promise<Record<string, string>> {
-  if (!useAI) return heuristicMapping(headers);
+  const cacheKey = headers.sort().join('|');
+  if (mappingCache.has(cacheKey)) {
+    onLog?.(createLog('📋 Usando mapeo en caché', 'info'));
+    return mappingCache.get(cacheKey)!;
+  }
+
+  if (!useAI) {
+    const result = heuristicMapping(headers);
+    mappingCache.set(cacheKey, result);
+    return result;
+  }
+
   onLog?.(createLog('🤖 Solicitando mapeo de columnas...'));
   const prompt = `Dado estos encabezados: ${JSON.stringify(headers)}. Devuelve SOLO un JSON con: "firstName","lastName","email","phone","company","title". Asigna el nombre exacto del encabezado que corresponda a cada campo. Si no hay coincidencia, deja vacío.`;
   try {
@@ -153,41 +204,34 @@ async function getColumnMapping(
       { role: 'user', content: prompt }
     ], ['firstName', 'lastName', 'email', 'phone', 'company', 'title'], onLog);
     onLog?.(createLog(`📋 Mapeo consensuado (confianza: ${res._confidence?.toFixed(2)})`, 'ok'));
+    mappingCache.set(cacheKey, res);
     return res;
   } catch {
     onLog?.(createLog('⚠️ Falló IA, usando heurística', 'warn'));
-    return heuristicMapping(headers);
+    const result = heuristicMapping(headers);
+    mappingCache.set(cacheKey, result);
+    return result;
   }
 }
 
-async function cleanContactWithAI(
+function cleanContactLocal(
   raw: Record<string, any>,
   mapping: Record<string, string>,
-  useAICleaning: boolean,
-  apiKeys: Record<string, string[]>,
-  onLog?: LogCallback
-): Promise<Contact> {
+  source: string
+): Contact {
   const get = (f: string) => mapping[f] ? String(raw[mapping[f]] || '') : '';
   let firstName = get('firstName'), lastName = get('lastName'), email = get('email'),
     phone = get('phone'), company = get('company'), title = get('title');
 
   if (!firstName && !lastName) {
-    const full = raw['File As'] || raw.Name || raw.FN || '';
+    const full = raw['File As'] || raw.Name || raw.FN || raw.name || raw.nombre || '';
     if (full) {
-      if (useAICleaning) {
-        try {
-          const ai = await callAIConsensus(apiKeys, [{ role: 'user', content: `Extrae nombre y apellido de: "${full}". JSON con "firstName","lastName".` }], ['firstName', 'lastName'], onLog);
-          firstName = ai.firstName; lastName = ai.lastName;
-        } catch { /* fallback below */ }
-      }
-      if (!firstName) {
-        const parts = full.split(',');
-        if (parts.length === 2) {
-          lastName = parts[0].trim(); firstName = parts[1].trim();
-        } else {
-          const ws = full.trim().split(/\s+/);
-          firstName = ws.slice(0, -1).join(' '); lastName = ws[ws.length - 1] || '';
-        }
+      const parts = full.split(',');
+      if (parts.length === 2) {
+        lastName = parts[0].trim(); firstName = parts[1].trim();
+      } else {
+        const ws = full.trim().split(/\s+/);
+        firstName = ws.slice(0, -1).join(' '); lastName = ws[ws.length - 1] || '';
       }
     }
   }
@@ -204,19 +248,10 @@ async function cleanContactWithAI(
   let cleanEmail = email.toLowerCase().trim();
   if (cleanEmail && !cleanEmail.includes('@')) cleanEmail = '';
 
-  if (!company && !title && useAICleaning) {
-    const notes = raw.Notes || raw.notes || '';
-    if (notes.length > 10) {
-      try {
-        const ai = await callAIConsensus(apiKeys, [{ role: 'user', content: `Extrae empresa y cargo de: "${notes.substring(0, 500)}". JSON con "company","title".` }], ['company', 'title'], onLog);
-        company = ai.company; title = ai.title;
-      } catch { /* */ }
-    }
-  }
   company = capitalize(company); title = capitalize(title);
 
   const confidence = (validPhone.startsWith('+') ? 0.5 : 0.2) + (cleanEmail ? 0.3 : 0) + (firstName ? 0.1 : 0) + (lastName ? 0.1 : 0);
-  return { nombre: firstName, apellido: lastName, empresa: company, cargo: title, whatsapp: validPhone, email: cleanEmail, confidence };
+  return { nombre: firstName, apellido: lastName, empresa: company, cargo: title, whatsapp: validPhone, email: cleanEmail, confidence, source };
 }
 
 export function parseFile(file: CachedFile): Promise<Record<string, any>[]> {
@@ -269,8 +304,10 @@ export function parseFile(file: CachedFile): Promise<Record<string, any>[]> {
 
 function jaroWinkler(s1: string, s2: string): number {
   if (s1 === s2) return 1.0;
+  if (!s1 || !s2) return 0.0;
   const len1 = s1.length, len2 = s2.length;
   const maxDist = Math.floor(Math.max(len1, len2) / 2) - 1;
+  if (maxDist < 0) return 0.0;
   let match = 0;
   const hash1 = new Array(len1).fill(0);
   const hash2 = new Array(len2).fill(0);
@@ -292,29 +329,90 @@ function jaroWinkler(s1: string, s2: string): number {
 export function deduplicateContacts(contacts: Contact[], threshold = 0.85): Contact[] {
   const used = new Set<number>();
   const groups: Contact[][] = [];
+
+  // Index by phone and email for O(1) lookups
+  const phoneIndex = new Map<string, number[]>();
+  const emailIndex = new Map<string, number[]>();
+  const nameIndex = new Map<string, number[]>(); // normalized first+last name
+
+  contacts.forEach((c, i) => {
+    if (c.whatsapp) {
+      const phone = c.whatsapp.replace(/\D/g, '');
+      if (!phoneIndex.has(phone)) phoneIndex.set(phone, []);
+      phoneIndex.get(phone)!.push(i);
+    }
+    if (c.email) {
+      if (!emailIndex.has(c.email)) emailIndex.set(c.email, []);
+      emailIndex.get(c.email)!.push(i);
+    }
+    const name = normalizeStr((c.nombre + ' ' + c.apellido).trim());
+    if (name) {
+      if (!nameIndex.has(name)) nameIndex.set(name, []);
+      nameIndex.get(name)!.push(i);
+    }
+  });
+
+  // First pass: exact matches by phone, email, and exact name
   for (let i = 0; i < contacts.length; i++) {
     if (used.has(i)) continue;
     const group = [contacts[i]]; used.add(i);
-    for (let j = i + 1; j < contacts.length; j++) {
-      if (used.has(j)) continue;
-      const a = contacts[i], b = contacts[j];
-      if ((a.whatsapp && b.whatsapp && a.whatsapp.replace(/\D/g, '') === b.whatsapp.replace(/\D/g, ''))
-        || (a.email && b.email && a.email === b.email)) {
-        group.push(b); used.add(j); continue;
+    const c = contacts[i];
+
+    // Phone match
+    if (c.whatsapp) {
+      const phone = c.whatsapp.replace(/\D/g, '');
+      for (const j of (phoneIndex.get(phone) || [])) {
+        if (!used.has(j)) { group.push(contacts[j]); used.add(j); }
       }
-      const nameA = (a.nombre + ' ' + a.apellido).trim().toLowerCase();
-      const nameB = (b.nombre + ' ' + b.apellido).trim().toLowerCase();
-      if (nameA && nameB && jaroWinkler(nameA, nameB) >= threshold) { group.push(b); used.add(j); }
     }
+
+    // Email match
+    if (c.email) {
+      for (const j of (emailIndex.get(c.email) || [])) {
+        if (!used.has(j)) { group.push(contacts[j]); used.add(j); }
+      }
+    }
+
+    // Exact name match (catches duplicates with same name but different phone/email)
+    const name = normalizeStr((c.nombre + ' ' + c.apellido).trim());
+    if (name && name.length > 3) {
+      for (const j of (nameIndex.get(name) || [])) {
+        if (!used.has(j)) { group.push(contacts[j]); used.add(j); }
+      }
+    }
+
     groups.push(group);
   }
-  return groups.map(g => {
+
+  // Second pass: fuzzy name matching between group representatives
+  const merged: Contact[][] = [];
+  const groupUsed = new Set<number>();
+  for (let i = 0; i < groups.length; i++) {
+    if (groupUsed.has(i)) continue;
+    const superGroup = [...groups[i]];
+    groupUsed.add(i);
+    const nameA = normalizeStr((groups[i][0].nombre + ' ' + groups[i][0].apellido).trim());
+    if (nameA && nameA.length > 3) {
+      for (let j = i + 1; j < groups.length; j++) {
+        if (groupUsed.has(j)) continue;
+        const nameB = normalizeStr((groups[j][0].nombre + ' ' + groups[j][0].apellido).trim());
+        if (nameB && jaroWinkler(nameA, nameB) >= threshold) {
+          superGroup.push(...groups[j]);
+          groupUsed.add(j);
+        }
+      }
+    }
+    merged.push(superGroup);
+  }
+
+  return merged.map(g => {
     if (g.length === 1) return g[0];
     const fields: (keyof Contact)[] = ['nombre', 'apellido', 'empresa', 'cargo', 'whatsapp', 'email'];
     const best = g.reduce((a, b) => fields.reduce((s, f) => s + (b[f] ? 1 : 0), 0) > fields.reduce((s, f) => s + (a[f] ? 1 : 0), 0) ? b : a);
-    const merged = { ...best };
-    g.forEach(c => fields.forEach(f => { if (!merged[f] && c[f]) (merged as any)[f] = c[f]; }));
-    return merged;
+    const result = { ...best };
+    g.forEach(c => fields.forEach(f => { if (!result[f] && c[f]) (result as any)[f] = c[f]; }));
+    result.confidence = Math.max(...g.map(c => c.confidence));
+    return result;
   });
 }
 
@@ -332,10 +430,14 @@ export interface ProcessOptions {
 }
 
 export async function processContacts(opts: ProcessOptions): Promise<{ contacts: Contact[]; lowConfidence: Contact[] }> {
-  const { files, apiKeys, useAIForMapping, useAIForCleaning, minConfidence, signal, onLog, onProgress, onLivePreview, isPaused } = opts;
+  const { files, apiKeys, useAIForMapping, minConfidence, signal, onLog, onProgress, onLivePreview, isPaused } = opts;
   const allContacts: Contact[] = [];
   const lowConfidence: Contact[] = [];
   let totalRows = 0, empty = 0;
+
+  // Reset failed keys at start of processing
+  resetFailedKeys();
+  mappingCache.clear();
 
   for (let i = 0; i < files.length; i++) {
     if (signal.aborted) throw new Error('Cancelado');
@@ -349,14 +451,22 @@ export async function processContacts(opts: ProcessOptions): Promise<{ contacts:
       const headers = Object.keys(rows[0]);
       const mapping = await getColumnMapping(headers, useAIForMapping, apiKeys, onLog);
 
-      for (const r of rows) {
+      // Process rows in parallel batches for speed
+      const batchSize = 50;
+      for (let b = 0; b < rows.length; b += batchSize) {
         if (signal.aborted) throw new Error('Cancelado');
-        const c = await cleanContactWithAI(r, mapping, useAIForCleaning, apiKeys, onLog);
-        if (!c.whatsapp && !c.email) { empty++; continue; }
-        if (c.confidence < minConfidence) lowConfidence.push(c);
-        else allContacts.push(c);
-        totalRows++;
-        if (totalRows % 10 === 0) onLivePreview(c);
+        while (isPaused()) await new Promise(r => setTimeout(r, 300));
+
+        const batch = rows.slice(b, b + batchSize);
+        const contacts = batch.map(r => cleanContactLocal(r, mapping, file.name));
+
+        for (const c of contacts) {
+          if (!c.whatsapp && !c.email && !c.nombre) { empty++; continue; }
+          if (c.confidence < minConfidence) lowConfidence.push(c);
+          else allContacts.push(c);
+          totalRows++;
+          if (totalRows % 25 === 0) onLivePreview(c);
+        }
       }
       onProgress(i + 1, files.length);
     } catch (e: any) {
@@ -367,7 +477,8 @@ export async function processContacts(opts: ProcessOptions): Promise<{ contacts:
 
   onLog(createLog(`📊 Contactos válidos: ${allContacts.length} (omitidos vacíos: ${empty})`));
   const deduped = deduplicateContacts(allContacts);
-  onLog(createLog(`🔗 Deduplicados: ${allContacts.length} → ${deduped.length}`, 'ok'));
+  const removedDupes = allContacts.length - deduped.length;
+  onLog(createLog(`🔗 Deduplicados: ${allContacts.length} → ${deduped.length} (${removedDupes} duplicados eliminados)`, 'ok'));
   return { contacts: deduped, lowConfidence };
 }
 
