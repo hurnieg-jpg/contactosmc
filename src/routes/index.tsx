@@ -67,10 +67,10 @@ function ContactUnifier() {
             <h1 className="text-3xl font-bold text-foreground tracking-tight">
               🤖 ContactUnifier AI Pro
             </h1>
-            <Badge className="bg-primary text-primary-foreground text-xs">v16</Badge>
+            <Badge className="bg-primary text-primary-foreground text-xs">v17</Badge>
           </div>
           <p className="text-muted-foreground">
-            Consenso multi-IA con logs detallados · 12+ proveedores · Dedup fuzzy
+            Consenso multi-IA con logs detallados · 22+ proveedores · Dedup fuzzy + nombres
           </p>
         </header>
 
