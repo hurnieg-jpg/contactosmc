@@ -75,7 +75,7 @@ export async function callAIConsensus(
         if (!res.ok) {
           const errText = await res.text();
           onLog?.(createLog(`⚠️ ${p.name} (${masked}): HTTP ${res.status} - ${errText.substring(0, 100)}`, 'warn'));
-          if (res.status === 429 || res.status === 403 || res.status === 401) continue;
+          if (res.status === 429 || res.status === 403 || res.status === 401 || res.status === 402 || res.status === 412) continue;
           throw new Error(`HTTP ${res.status}`);
         }
         const data = await res.json();
