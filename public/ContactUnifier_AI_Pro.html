@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ContactUnifier AI Pro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/libphonenumber-js@1.10.53/bundle/libphonenumber-js.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#f1f5f9;--card:#fff;--border:#e2e8f0;--primary:#2563eb;--primary-hover:#1d4ed8;--text:#1e293b;--muted:#64748b;--green:#16a34a;--yellow:#eab308;--red:#dc2626;--purple:#7c3aed;--radius:20px;--btn-radius:40px}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.app{max-width:1400px;margin:0 auto;padding:16px}
+h1{text-align:center;font-size:1.8rem;padding:16px 0;background:linear-gradient(135deg,var(--primary),#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:800}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;justify-content:center}
+.tab-btn{padding:10px 20px;border:2px solid var(--border);background:var(--card);border-radius:var(--btn-radius);cursor:pointer;font-size:.9rem;font-weight:600;transition:all .2s}
+.tab-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.tab-btn:hover:not(.active){border-color:var(--primary);color:var(--primary)}
+.tab-content{display:none}.tab-content.active{display:block}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.card h3{margin-bottom:12px;font-size:1.1rem}
+button,.btn{padding:8px 20px;border:none;border-radius:var(--btn-radius);cursor:pointer;font-weight:600;font-size:.85rem;transition:all .2s}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-hover)}
+.btn-secondary{background:#f1f5f9;color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{background:#e2e8f0}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#b91c1c}
+.btn-success{background:var(--green);color:#fff}
+.btn-warning{background:var(--yellow);color:#000}
+input[type=text],input[type=password],input[type=number],select{padding:8px 12px;border:1px solid var(--border);border-radius:12px;font-size:.85rem;width:100%;background:var(--card)}
+.flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:20px;font-size:.75rem;font-weight:600}
+.badge-green{background:#dcfce7;color:#166534}.badge-red{background:#fee2e2;color:#991b1b}.badge-yellow{background:#fef9c3;color:#854d0e}.badge-blue{background:#dbeafe;color:#1e40af}
+.log-box{background:#0f172a;color:#94a3b8;border-radius:var(--radius);padding:12px;height:220px;overflow-y:auto;font-family:'Fira Code',monospace;font-size:.72rem;line-height:1.6}
+.log-ok{color:#4ade80}.log-err{color:#f87171}.log-warn{color:#facc15}.log-ai{color:#a78bfa}.log-info{color:#60a5fa}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{background:#f8fafc;padding:8px 10px;text-align:left;font-weight:600;border-bottom:2px solid var(--border);position:sticky;top:0}
+td{padding:6px 10px;border-bottom:1px solid var(--border)}
+tr:hover{background:#f8fafc}
+.conf-high{background:#f0fdf4}.conf-med{background:#fefce8}.conf-low{background:#fef2f2}
+.drop-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:40px;text-align:center;transition:all .2s;cursor:pointer}
+.drop-zone.drag-over{border-color:var(--primary);background:#eff6ff}
+.progress-bar{height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden}.progress-fill{height:100%;background:linear-gradient(90deg,var(--primary),#7c3aed);transition:width .3s;border-radius:4px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:1000;display:none}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:var(--radius);padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto}
+.status-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.dot-green{background:var(--green)}.dot-yellow{background:var(--yellow)}.dot-red{background:var(--red)}.dot-gray{background:#94a3b8}
+.consensus-panel{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px}
+.consensus-card{border:2px solid var(--border);border-radius:14px;padding:12px;font-size:.8rem}
+.consensus-card.winner{border-color:var(--primary);background:#eff6ff}
+.counters{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0}
+.counter{text-align:center}.counter .num{font-size:1.6rem;font-weight:800}.counter .lbl{font-size:.7rem;color:var(--muted)}
+.gateway-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.model-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.model-badge{font-size:.65rem;padding:2px 8px;border-radius:10px;border:1px solid var(--border);display:flex;align-items:center;gap:3px}
+.search-box{position:relative}.search-box input{padding-left:32px}.search-box::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%)}
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.filter-btn{padding:4px 12px;border:1px solid var(--border);border-radius:20px;background:var(--card);cursor:pointer;font-size:.75rem}
+.filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.live-table{max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:14px}
+.banner{padding:12px 16px;border-radius:14px;margin-bottom:12px;font-weight:600;display:none}
+.banner-green{background:#dcfce7;color:#166534;display:block}
+.banner-yellow{background:#fef9c3;color:#854d0e;display:block}
+@media(max-width:768px){.grid2{grid-template-columns:1fr}.tabs{gap:4px}.tab-btn{padding:8px 12px;font-size:.8rem}h1{font-size:1.3rem}}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>⚡ ContactUnifier AI Pro</h1>
+<div class="tabs">
+<button class="tab-btn active" onclick="switchTab('apis')">🔑 APIs</button>
+<button class="tab-btn" onclick="switchTab('files')">📁 Archivos</button>
+<button class="tab-btn" onclick="switchTab('process')">⚡ Procesar</button>
+<button class="tab-btn" onclick="switchTab('results')">📋 Resultados</button>
+<button class="tab-btn" onclick="switchTab('export')">📤 Exportar</button>
+</div>
+
+<!-- ===== TAB APIs ===== -->
+<div id="tab-apis" class="tab-content active">
+<div class="card">
+<div class="flex" style="justify-content:space-between;margin-bottom:16px">
+<h3>🔑 Pasarelas IA — Cascada Inteligente</h3>
+<div class="flex">
+<button class="btn btn-primary" onclick="testAllGateways()">🧪 TEST ALL</button>
+<button class="btn btn-secondary" onclick="importConfig()">📥 Importar JSON</button>
+<button class="btn btn-secondary" onclick="exportConfig()">📤 Exportar JSON</button>
+</div>
+</div>
+<div id="gateways-container"></div>
+</div>
+</div>
+
+<!-- ===== TAB FILES ===== -->
+<div id="tab-files" class="tab-content">
+<div class="card">
+<h3>📁 Archivos de Contactos</h3>
+<div class="drop-zone" id="dropZone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+<p style="font-size:2rem">📂</p>
+<p>Arrastrá archivos o carpetas aquí</p>
+<p style="font-size:.75rem;color:var(--muted);margin-top:4px">CSV, XLSX, XLS, VCF, TXT, JSON</p>
+</div>
+<div class="flex" style="margin-top:12px">
+<button class="btn btn-primary" onclick="selectFiles()">📄 Seleccionar archivos</button>
+<button class="btn btn-secondary" onclick="selectFolder()">📁 Seleccionar carpeta</button>
+<button class="btn btn-danger" onclick="clearFiles()">🗑 Limpiar lista</button>
+</div>
+<input type="file" id="fileInput" multiple accept=".csv,.xlsx,.xls,.vcf,.txt,.json" style="display:none" onchange="handleFileSelect(event)">
+<input type="file" id="folderInput" webkitdirectory style="display:none" onchange="handleFileSelect(event)">
+<div id="fileList" style="margin-top:12px"></div>
+<div id="filePreview" style="margin-top:12px"></div>
+</div>
+</div>
+
+<!-- ===== TAB PROCESS ===== -->
+<div id="tab-process" class="tab-content">
+<div id="resumeBanner" class="banner"></div>
+<div class="card">
+<div class="flex" style="margin-bottom:12px">
+<button class="btn btn-primary" onclick="startProcessing()">⚡ Iniciar</button>
+<button class="btn btn-secondary" id="btnPause" onclick="togglePause()" disabled>⏸ Pausar</button>
+<button class="btn btn-danger" id="btnStop" onclick="stopProcessing()" disabled>🛑 STOP</button>
+<button class="btn btn-warning" onclick="processAndClose()">🌙 Procesar y cerrar</button>
+<button class="btn btn-secondary" onclick="resetAll()">🔄 Reset</button>
+</div>
+<div class="flex" style="margin-bottom:12px;font-size:.85rem">
+<label><input type="checkbox" id="optAIMap" checked> IA para mapeo</label>
+<label><input type="checkbox" id="optAIClean" checked> IA para limpieza</label>
+<label><input type="checkbox" id="optReviewDoubt" checked> Revisar dudosos</label>
+<label>Confianza mín: <input type="number" id="optMinConf" value="0.7" min="0" max="1" step="0.1" style="width:60px"></label>
+<label>País: <input type="text" id="optCountry" value="AR" style="width:50px"></label>
+</div>
+<div style="margin-bottom:8px">
+<div class="flex" style="justify-content:space-between;font-size:.8rem;color:var(--muted)">
+<span id="progressText">Listo</span><span id="progressPct">0%</span>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0"></div></div>
+</div>
+<div class="counters" id="counters">
+<div class="counter"><div class="num" id="cntTotal">0</div><div class="lbl">Total</div></div>
+<div class="counter"><div class="num" id="cntValid">0</div><div class="lbl">Válidos</div></div>
+<div class="counter"><div class="num" id="cntDup">0</div><div class="lbl">Duplicados</div></div>
+<div class="counter"><div class="num" id="cntDoubt">0</div><div class="lbl">País dudoso</div></div>
+<div class="counter"><div class="num" id="cntDiscard">0</div><div class="lbl">Descartados</div></div>
+</div>
+<div class="log-box" id="logBox"></div>
+<div class="consensus-panel" id="consensusPanel"></div>
+<div class="live-table" id="liveTable" style="margin-top:12px"></div>
+</div>
+</div>
+
+<!-- ===== TAB RESULTS ===== -->
+<div id="tab-results" class="tab-content">
+<div class="card">
+<div class="flex" style="justify-content:space-between;margin-bottom:12px">
+<h3>📋 Resultados</h3>
+<button class="btn btn-warning" onclick="reviewDoubtful()">🔍 Revisar dudosos</button>
+</div>
+<div id="resultsSummary" style="margin-bottom:12px"></div>
+<div class="search-box" style="margin-bottom:8px"><input type="text" id="searchInput" placeholder="  🔍 Buscar contacto..." oninput="renderResults()"></div>
+<div class="filter-bar" id="filterBar">
+<button class="filter-btn active" data-filter="all" onclick="setFilter('all',this)">Todos</button>
+<button class="filter-btn" data-filter="whatsapp" onclick="setFilter('whatsapp',this)">Con WhatsApp</button>
+<button class="filter-btn" data-filter="email" onclick="setFilter('email',this)">Con Email</button>
+<button class="filter-btn" data-filter="lowconf" onclick="setFilter('lowconf',this)">Baja confianza</button>
+<button class="filter-btn" data-filter="doubt" onclick="setFilter('doubt',this)">País dudoso</button>
+<button class="filter-btn" data-filter="nowhatsapp" onclick="setFilter('nowhatsapp',this)">Sin WhatsApp</button>
+</div>
+<div style="max-height:500px;overflow:auto" id="resultsTableWrap"></div>
+</div>
+</div>
+
+<!-- ===== TAB EXPORT ===== -->
+<div id="tab-export" class="tab-content">
+<div class="card">
+<h3>📤 Exportar Contactos</h3>
+<div id="exportSummary" style="margin-bottom:16px"></div>
+<div class="grid2">
+<div class="card"><h3>📄 CSV</h3><p style="font-size:.8rem;color:var(--muted)">Google Contacts / WhatsApp Business</p><button class="btn btn-primary" onclick="exportCSV()" style="margin-top:8px">Descargar CSV</button></div>
+<div class="card"><h3>📊 XLSX</h3><p style="font-size:.8rem;color:var(--muted)">2 hojas: Limpios + Descartados</p><button class="btn btn-primary" onclick="exportXLSX()" style="margin-top:8px">Descargar XLSX</button></div>
+<div class="card"><h3>📇 VCF</h3><p style="font-size:.8rem;color:var(--muted)">Google Contacts / WhatsApp</p><button class="btn btn-primary" onclick="exportVCF()" style="margin-top:8px">Descargar VCF</button></div>
+<div class="card"><h3>🔧 JSON</h3><p style="font-size:.8rem;color:var(--muted)">6 campos por objeto</p><button class="btn btn-primary" onclick="exportJSON()" style="margin-top:8px">Descargar JSON</button></div>
+</div>
+</div>
+</div>
+
+<!-- MODAL EDIT -->
+<div class="modal-overlay" id="editModal">
+<div class="modal">
+<h3 style="margin-bottom:12px">✏️ Editar Contacto</h3>
+<div id="editFields"></div>
+<div class="flex" style="justify-content:flex-end;margin-top:12px">
+<button class="btn btn-secondary" onclick="closeModal('editModal')">Cancelar</button>
+<button class="btn btn-primary" onclick="saveEdit()">Guardar</button>
+</div>
+</div>
+</div>
+<!-- MODAL REVIEW -->
+<div class="modal-overlay" id="reviewModal">
+<div class="modal" style="max-width:900px">
+<h3 style="margin-bottom:12px">🔍 Revisar Contactos Dudosos</h3>
+<div id="reviewList"></div>
+<div class="flex" style="justify-content:flex-end;margin-top:12px">
+<button class="btn btn-secondary" onclick="closeModal('reviewModal')">Cerrar</button>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+// ============ STATE ============
+let loadedFiles = [];
+let contacts = [];
+let discarded = [];
+let processing = false;
+let paused = false;
+let stopped = false;
+let currentFilter = 'all';
+let editingIdx = -1;
+let failedModels = new Set();
+const stats = JSON.parse(localStorage.getItem('cu_stats')||'{}');
+const FIELDS = ['nombre','apellido','empresa','cargo','whatsapp','email'];
+const FIELD_LABELS = {nombre:'Nombre',apellido:'Apellido',empresa:'Empresa',cargo:'Cargo',whatsapp:'WhatsApp',email:'Email'};
+
+// ============ GATEWAYS ============
+const GATEWAYS = [
+  {id:'openrouter',name:'OpenRouter',emoji:'🌐',base:'https://openrouter.ai/api/v1',keyPrefix:'sk-or',
+   models:[
+    {id:'google/gemma-4-31b-it:free',name:'Gemma 4 31B',temp:1.0,top_p:0.95,top_k:64},
+    {id:'nvidia/nemotron-3-super-120b-a12b:free',name:'Nemotron 120B'},
+    {id:'openai/gpt-oss-120b:free',name:'GPT-OSS 120B'},
+    {id:'meta-llama/llama-3.3-70b-instruct:free',name:'Llama 3.3 70B'},
+    {id:'google/gemma-3-27b-it:free',name:'Gemma 3 27B'},
+    {id:'qwen/qwen3-coder:free',name:'Qwen3 Coder'},
+    {id:'nvidia/nemotron-nano-12b-v2-vl:free',name:'Nemotron Nano 12B'},
+    {id:'openai/gpt-oss-20b:free',name:'GPT-OSS 20B'},
+    {id:'z-ai/glm-4.5-air:free',name:'GLM 4.5 Air'},
+    {id:'google/gemma-3-12b-it:free',name:'Gemma 3 12B'},
+    {id:'arcee-ai/trinity-large-preview:free',name:'Trinity Large'},
+    {id:'minimax/minimax-m2.5:free',name:'MiniMax M2.5'},
+    {id:'nousresearch/hermes-3-llama-3.1-405b:free',name:'Hermes 405B'},
+    {id:'google/gemma-3-4b-it:free',name:'Gemma 3 4B'},
+    {id:'meta-llama/llama-3.2-3b-instruct:free',name:'Llama 3.2 3B'},
+    {id:'liquid/lfm-2.5-1.2b-instruct:free',name:'LFM 2.5 1.2B'},
+    {id:'openrouter/free',name:'Auto Free'}
+   ]},
+  {id:'groq',name:'Groq',emoji:'🟢',base:'https://api.groq.com/openai/v1',
+   models:[{id:'llama-3.3-70b-versatile',name:'Llama 3.3 70B'},{id:'llama-3.1-8b-instant',name:'Llama 3.1 8B'},{id:'gemma2-9b-it',name:'Gemma2 9B'}]},
+  {id:'requesty',name:'Requesty',emoji:'🔷',base:'https://router.requesty.ai/v1',
+   models:[{id:'google/gemini-2.0-flash-exp',name:'Gemini Flash'},{id:'openai/gpt-4.1-mini',name:'GPT-4.1 Mini'}]},
+  {id:'pollinations',name:'Pollinations',emoji:'🌸',base:'https://text.pollinations.ai/openai',
+   models:[{id:'openai',name:'OpenAI'},{id:'mistral',name:'Mistral'},{id:'llama',name:'Llama'}]},
+  {id:'puter',name:'Puter.js',emoji:'💻',base:'puter',
+   models:[{id:'xiaomi/mimo-v2-flash',name:'MiMo-V2-Flash'},{id:'xiaomi/mimo-v2-pro',name:'MiMo-V2-Pro'}]}
+];
+
+let apiKeys = JSON.parse(localStorage.getItem('cu_keys')||'{}');
+GATEWAYS.forEach(g=>{if(!apiKeys[g.id])apiKeys[g.id]=''});
+
+// ============ TABS ============
+function switchTab(id){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b=>{if(b.textContent.toLowerCase().includes(id.substring(0,3)))b.classList.add('active')});
+  if(id==='results')renderResults();
+  if(id==='export')renderExportSummary();
+}
+
+// ============ LOGGING ============
+function log(msg,type='info'){
+  const box=document.getElementById('logBox');
+  const t=new Date().toLocaleTimeString();
+  const cls={ok:'log-ok',err:'log-err',warn:'log-warn',ai:'log-ai',info:'log-info'}[type]||'log-info';
+  box.innerHTML+=`<div class="${cls}">[${t}] ${msg}</div>`;
+  box.scrollTop=box.scrollHeight;
+}
+
+// ============ API KEYS UI ============
+function renderGateways(){
+  const c=document.getElementById('gateways-container');
+  c.innerHTML=GATEWAYS.map(g=>{
+    const s=stats[g.id]||{ok:0,fail:0,avgMs:0};
+    return `<div class="card" style="margin-bottom:12px">
+      <div class="gateway-header">
+        <h3>${g.emoji} ${g.name}</h3>
+        <div class="flex"><span class="badge badge-green">✓${s.ok}</span><span class="badge badge-red">✗${s.fail}</span>
+        ${s.avgMs?`<span class="badge badge-blue">${Math.round(s.avgMs)}ms</span>`:''}</div>
+      </div>
+      ${g.id!=='puter'?`<div class="flex"><input type="password" id="key_${g.id}" value="${apiKeys[g.id]||''}" placeholder="API Key..." onchange="saveKey('${g.id}',this.value)">
+      <button class="btn btn-secondary" onclick="testGateway('${g.id}')">🧪 Test</button></div>`:'<p style="font-size:.8rem;color:var(--muted)">Sin key necesaria (user-pays via Puter.js)</p>'}
+      <div class="model-list" id="models_${g.id}">${g.models.map(m=>`<span class="model-badge" id="mb_${g.id}_${m.id.replace(/[/:\.]/g,'_')}"><span class="status-dot dot-gray"></span>${m.name}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+function saveKey(gid,v){apiKeys[gid]=v.trim();localStorage.setItem('cu_keys',JSON.stringify(apiKeys))}
+function importConfig(){const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=e=>{const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.keys)apiKeys=d.keys;else apiKeys=d;localStorage.setItem('cu_keys',JSON.stringify(apiKeys));if(d.stats)Object.assign(stats,d.stats);localStorage.setItem('cu_stats',JSON.stringify(stats));renderGateways();log('✅ Configuración importada','ok')}catch(e){log('❌ JSON inválido','err')}};r.readAsText(e.target.files[0])};i.click()}
+function exportConfig(){const b=new Blob([JSON.stringify({keys:apiKeys,stats},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='contactunifier_config.json';a.click()}
+
+// ============ AI CALL ============
+async function callOpenAICompatible(base,key,model,messages,extraParams={}){
+  const isGemma4=model.includes('gemma-4');
+  const body={model,messages,temperature:isGemma4?1.0:0.1,...(isGemma4?{top_p:0.95}:{}),...extraParams};
+  const headers={'Content-Type':'application/json'};
+  if(key)headers['Authorization']=`Bearer ${key}`;
+  const start=performance.now();
+  const res=await fetch(base+'/chat/completions',{method:'POST',headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});
+  const ms=Math.round(performance.now()-start);
+  if(!res.ok){const t=await res.text().catch(()=>'');throw new Error(`HTTP ${res.status} ${t.substring(0,100)}|${ms}`);}
+  const data=await res.json();
+  return {content:data.choices[0].message.content,ms};
+}
+
+async function callPuter(model,messages){
+  return new Promise((resolve,reject)=>{
+    if(!window.puter||!window.puter.ai){reject(new Error('Puter.js no cargado'));return}
+    const start=performance.now();
+    window.puter.ai.chat(model,messages).then(r=>{
+      resolve({content:typeof r==='string'?r:r.message?.content||JSON.stringify(r),ms:Math.round(performance.now()-start)});
+    }).catch(reject);
+  });
+}
+
+function updateModelBadge(gid,mid,status){
+  const el=document.getElementById('mb_'+gid+'_'+mid.replace(/[/:\.]/g,'_'));
+  if(!el)return;
+  const dot=el.querySelector('.status-dot');
+  dot.className='status-dot dot-'+(status==='ok'?'green':status==='skip'?'yellow':'red');
+}
+
+function updateStats(gid,ok,ms){
+  if(!stats[gid])stats[gid]={ok:0,fail:0,avgMs:0,totalMs:0,count:0};
+  const s=stats[gid];
+  if(ok){s.ok++;s.totalMs=(s.totalMs||0)+ms;s.count=(s.count||0)+1;s.avgMs=s.totalMs/s.count}else{s.fail++}
+  localStorage.setItem('cu_stats',JSON.stringify(stats));
+}
+
+async function callAI(messages){
+  for(const gw of GATEWAYS){
+    const key=apiKeys[gw.id];
+    if(gw.id!=='puter'&&gw.id!=='pollinations'&&!key)continue;
+    for(const model of gw.models){
+      const fk=gw.id+'|'+model.id;
+      if(failedModels.has(fk))continue;
+      try{
+        let result;
+        if(gw.id==='puter'){
+          result=await callPuter(model.id,messages);
+        }else{
+          result=await callOpenAICompatible(gw.base,key,model.id,messages);
+        }
+        updateStats(gw.id,true,result.ms);
+        updateModelBadge(gw.id,model.id,'ok');
+        log(`✅ ${gw.emoji} ${model.name} (${result.ms}ms)`,'ok');
+        return {content:result.content,model:model.name,gateway:gw.name,ms:result.ms};
+      }catch(e){
+        const msg=e.message||'';
+        if(msg.includes('402')||msg.includes('payment')){failedModels.add(fk);updateModelBadge(gw.id,model.id,'skip');log(`⚠️ ${model.name}: pago requerido, saltando`,'warn');continue}
+        if(msg.includes('429')){log(`⚠️ ${model.name}: rate limit, esperando...`,'warn');await new Promise(r=>setTimeout(r,10000));continue}
+        updateModelBadge(gw.id,model.id,'fail');updateStats(gw.id,false,0);
+        log(`❌ ${gw.emoji} ${model.name}: ${msg.substring(0,80)}`,'err');
+      }
+    }
+  }
+  log('🔧 Todas las IAs fallaron, usando heurística local','warn');
+  return null;
+}
+
+async function callConsensus(messages){
+  // Pick 3 fastest models across all gateways
+  const candidates=[];
+  for(const gw of GATEWAYS){
+    const key=apiKeys[gw.id];
+    if(gw.id!=='puter'&&gw.id!=='pollinations'&&!key)continue;
+    for(const m of gw.models){
+      const fk=gw.id+'|'+m.id;
+      if(failedModels.has(fk))continue;
+      const s=stats[gw.id];
+      candidates.push({gw,model:m,avgMs:s?.avgMs||9999});
+    }
+  }
+  candidates.sort((a,b)=>a.avgMs-b.avgMs);
+  const top3=candidates.slice(0,3);
+  if(top3.length===0)return callAI(messages);
+
+  const results=await Promise.allSettled(top3.map(async c=>{
+    try{
+      let r;
+      if(c.gw.id==='puter')r=await callPuter(c.model.id,messages);
+      else r=await callOpenAICompatible(c.gw.base,apiKeys[c.gw.id],c.model.id,messages);
+      return{content:r.content,model:c.model.name,gateway:c.gw.name,ms:r.ms,emoji:c.gw.emoji};
+    }catch(e){return{error:e.message,model:c.model.name,gateway:c.gw.name}}
+  }));
+
+  const ok=results.filter(r=>r.status==='fulfilled'&&!r.value.error).map(r=>r.value);
+  renderConsensusPanel(ok);
+  if(ok.length===0)return callAI(messages);
+
+  // Try to parse JSON and compare fields
+  let winner=ok[0],reason='velocidad';
+  if(ok.length>=2){
+    try{
+      const parsed=ok.map(o=>{try{return JSON.parse(o.content)}catch{return null}}).filter(Boolean);
+      if(parsed.length>=2){
+        // Check field-by-field majority
+        const merged={};
+        for(const f of FIELDS){
+          const vals=parsed.map(p=>p[f]||'').filter(Boolean);
+          const freq={};vals.forEach(v=>{freq[v]=(freq[v]||0)+1});
+          const best=Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
+          if(best&&best[1]>=2){merged[f]=best[0]}
+          else if(vals[0]){merged[f]=vals[0]}
+        }
+        winner={...ok[0],content:JSON.stringify(merged)};
+        reason='consenso mayoría';
+      }
+    }catch{}
+  }
+  winner._reason=reason;
+  return winner;
+}
+
+function renderConsensusPanel(results){
+  const p=document.getElementById('consensusPanel');
+  if(!results.length){p.innerHTML='';return}
+  p.innerHTML=results.map((r,i)=>`<div class="consensus-card ${i===0?'winner':''}">
+    <div style="font-weight:700">${r.emoji||'🤖'} ${r.model}</div>
+    <div style="font-size:.7rem;color:var(--muted)">${r.gateway} · ${r.ms||'?'}ms</div>
+    <div style="font-size:.7rem;margin-top:4px">${r.error?'❌ Error':r.content?.substring(0,100)+'...'}</div>
+    ${i===0?'<div class="badge badge-blue" style="margin-top:4px">🏆 Ganador</div>':''}
+  </div>`).join('');
+}
+
+// ============ TEST GATEWAYS ============
+async function testGateway(gid){
+  const gw=GATEWAYS.find(g=>g.id===gid);
+  if(!gw)return;
+  const key=apiKeys[gid];
+  if(gid!=='puter'&&gid!=='pollinations'&&!key){log(`⚠️ ${gw.name}: sin API key`,'warn');return}
+  log(`🧪 Testeando ${gw.name}...`,'info');
+  for(const m of gw.models){
+    try{
+      const msgs=[{role:'user',content:'Return {"status":"ok"}'}];
+      let r;
+      if(gid==='puter')r=await callPuter(m.id,msgs);
+      else r=await callOpenAICompatible(gw.base,key,m.id,msgs);
+      updateModelBadge(gid,m.id,'ok');updateStats(gid,true,r.ms);
+      log(`✅ ${m.name}: ${r.ms}ms`,'ok');
+    }catch(e){
+      const msg=e.message||'';
+      if(msg.includes('402')){failedModels.add(gid+'|'+m.id);updateModelBadge(gid,m.id,'skip');log(`⚠️ ${m.name}: pago requerido`,'warn')}
+      else{updateModelBadge(gid,m.id,'fail');updateStats(gid,false,0);log(`❌ ${m.name}: ${msg.substring(0,80)}`,'err')}
+    }
+  }
+  renderGateways();
+}
+
+async function testAllGateways(){
+  log('🧪 TEST ALL — probando todas las pasarelas en paralelo...','info');
+  await Promise.allSettled(GATEWAYS.map(g=>testGateway(g.id)));
+  log('✅ Test completo','ok');
+  renderGateways();
+}
+
+// ============ FILES ============
+function handleDragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over')}
+function handleDragLeave(e){e.currentTarget.classList.remove('drag-over')}
+async function handleDrop(e){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over');
+  const items=e.dataTransfer.items;
+  const files=[];
+  for(let i=0;i<items.length;i++){
+    const entry=items[i].webkitGetAsEntry?.();
+    if(entry){await traverseEntry(entry,files)}
+    else{const f=items[i].getAsFile();if(f)files.push(f)}
+  }
+  addFiles(files);
+}
+async function traverseEntry(entry,files){
+  if(entry.isFile){const f=await new Promise(r=>entry.file(r));files.push(f)}
+  else if(entry.isDirectory){const reader=entry.createReader();const entries=await new Promise(r=>reader.readEntries(r));for(const e of entries)await traverseEntry(e,files)}
+}
+function selectFiles(){document.getElementById('fileInput').click()}
+function selectFolder(){document.getElementById('folderInput').click()}
+function handleFileSelect(e){addFiles(Array.from(e.target.files))}
+function addFiles(files){
+  const exts=['.csv','.xlsx','.xls','.vcf','.txt','.json'];
+  const valid=files.filter(f=>exts.some(e=>f.name.toLowerCase().endsWith(e)));
+  // Cache file contents immediately
+  valid.forEach(async f=>{
+    const buf=await f.arrayBuffer();
+    loadedFiles.push({name:f.name,size:f.size,buffer:buf,type:f.name.split('.').pop().toLowerCase()});
+    renderFileList();
+  });
+  if(valid.length)setTimeout(()=>previewFirst(),500);
+}
+function clearFiles(){loadedFiles=[];renderFileList();document.getElementById('filePreview').innerHTML=''}
+function removeFile(i){loadedFiles.splice(i,1);renderFileList()}
+function renderFileList(){
+  const el=document.getElementById('fileList');
+  if(!loadedFiles.length){el.innerHTML='<p style="color:var(--muted);font-size:.85rem">Sin archivos cargados</p>';return}
+  el.innerHTML=`<p style="font-size:.85rem;margin-bottom:8px"><strong>${loadedFiles.length}</strong> archivo(s)</p>`+
+    loadedFiles.map((f,i)=>`<div class="flex" style="padding:4px 0;border-bottom:1px solid var(--border)">
+      <span style="flex:1;font-size:.8rem">${f.name}</span>
+      <span style="font-size:.7rem;color:var(--muted)">${(f.size/1024).toFixed(1)}KB</span>
+      <button class="btn btn-secondary" style="padding:2px 8px;font-size:.7rem" onclick="removeFile(${i})">✕</button>
+    </div>`).join('');
+}
+function previewFirst(){
+  if(!loadedFiles.length)return;
+  try{
+    const f=loadedFiles[0];const rows=parseFileBuffer(f.buffer,f.type,f.name);
+    if(!rows.length)return;
+    const keys=Object.keys(rows[0]);
+    const preview=rows.slice(0,10);
+    document.getElementById('filePreview').innerHTML=`<div class="card"><h3>Preview: ${f.name} (${rows.length} registros)</h3>
+      <div style="overflow-x:auto"><table><thead><tr>${keys.map(k=>`<th>${k}</th>`).join('')}</tr></thead>
+      <tbody>${preview.map(r=>`<tr>${keys.map(k=>`<td>${r[k]||''}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+  }catch(e){document.getElementById('filePreview').innerHTML=`<p class="log-err">${e.message}</p>`}
+}
+
+// ============ FILE PARSING ============
+function parseFileBuffer(buf,type,name){
+  if(type==='csv'||type==='txt'){
+    const text=new TextDecoder('utf-8').decode(buf);
+    if(type==='txt'&&!text.includes(',')&&!text.includes('\t')&&!text.includes(';')){
+      // Try line-by-line phone/contact extraction
+      return text.split(/\r?\n/).filter(l=>l.trim()).map(l=>({raw:l.trim()}));
+    }
+    const result=Papa.parse(text,{header:true,skipEmptyLines:true,dynamicTyping:false});
+    return result.data;
+  }
+  if(type==='xlsx'||type==='xls'){
+    const wb=XLSX.read(new Uint8Array(buf),{type:'array'});
+    const rows=[];
+    wb.SheetNames.forEach(sn=>{const d=XLSX.utils.sheet_to_json(wb.Sheets[sn],{defval:''});rows.push(...d)});
+    return rows;
+  }
+  if(type==='vcf'){
+    const text=new TextDecoder('utf-8').decode(buf);
+    return parseVCF(text);
+  }
+  if(type==='json'){
+    const text=new TextDecoder('utf-8').decode(buf);
+    const data=JSON.parse(text);
+    return Array.isArray(data)?data:[data];
+  }
+  return[];
+}
+
+function parseVCF(text){
+  const cards=text.split('BEGIN:VCARD').filter(c=>c.includes('END:VCARD'));
+  return cards.map(card=>{
+    const obj={};
+    const lines=card.split(/\r?\n/);
+    lines.forEach(l=>{
+      if(l.startsWith('FN'))obj['FN']=l.split(':').slice(1).join(':');
+      if(l.startsWith('N:'))obj['N']=l.split(':').slice(1).join(':');
+      if(l.startsWith('ORG'))obj['ORG']=l.split(':').slice(1).join(':');
+      if(l.startsWith('TITLE'))obj['TITLE']=l.split(':').slice(1).join(':');
+      if(l.startsWith('TEL'))obj['TEL']=(obj['TEL']?obj['TEL']+' ':'')+l.split(':').slice(1).join(':');
+      if(l.startsWith('EMAIL'))obj['EMAIL']=l.split(':').slice(1).join(':');
+    });
+    return obj;
+  });
+}
+
+// ============ FIELD MAPPING ============
+const MAP_RULES={
+  nombre:[/^(first.?name|nombre|given.?name|name|fn|prenom)$/i],
+  apellido:[/^(last.?name|apellido|surname|family.?name|family)$/i],
+  empresa:[/^(org|organization|company|empresa|organisation|compañ[ií]a)$/i],
+  cargo:[/^(title|cargo|job.?title|position|puesto|role|job)$/i],
+  whatsapp:[/^(phone|tel|telephone|mobile|celular|whatsapp|tel[ée]fono|m[oó]vil|cell|fax|phone.?number)$/i],
+  email:[/^(e?-?mail|correo|email.?address)$/i]
+};
+const FULL_NAME_PATTERNS=[/^(file.?as|full.?name|nombre.?y?.?apellido|nombre.?completo|display.?name|fn|name|nombre apellido)$/i];
+
+function mapColumns(headers){
+  const mapping={};
+  let fullNameCol=null;
+  headers.forEach(h=>{
+    const hn=h.trim().toLowerCase().replace(/[_\-]/g,' ');
+    for(const[field,patterns]of Object.entries(MAP_RULES)){
+      if(patterns.some(p=>p.test(hn)))mapping[h]=field;
+    }
+    if(!mapping[h]&&FULL_NAME_PATTERNS.some(p=>p.test(hn)))fullNameCol=h;
+  });
+  if(fullNameCol)mapping[fullNameCol]='_fullname';
+  return mapping;
+}
+
+async function mapColumnsAI(headers,sampleRows){
+  const prompt=`Map these CSV headers to exactly these 6 fields: nombre, apellido, empresa, cargo, whatsapp, email.
+Headers: ${JSON.stringify(headers)}
+Sample data: ${JSON.stringify(sampleRows.slice(0,3))}
+Return JSON: {"mapping":{"header":"field",...}} where field is one of: nombre, apellido, empresa, cargo, whatsapp, email, _fullname (for combined name fields), _skip (for irrelevant fields).`;
+  const result=await callAI([{role:'system',content:'Respond only with valid JSON.'},{role:'user',content:prompt}]);
+  if(!result)return null;
+  try{
+    const clean=result.content.replace(/```json?\n?/g,'').replace(/```/g,'').trim();
+    return JSON.parse(clean).mapping;
+  }catch{return null}
+}
+
+// ============ ENCODING FIX ============
+function fixEncoding(s){
+  if(!s||typeof s!=='string')return s||'';
+  return s.replace(/Ã³/g,'ó').replace(/Ã©/g,'é').replace(/Ã¡/g,'á').replace(/Ã­/g,'í').replace(/Ãº/g,'ú')
+    .replace(/Ã±/g,'ñ').replace(/Ã/g,'Á').replace(/â€™/g,"'").replace(/â€œ/g,'"').replace(/â€/g,'"')
+    .replace(/Ã"/g,'Ó').replace(/Ã‰/g,'É').replace(/Ãš/g,'Ú').replace(/ÃN/g,'ÁN')
+    .replace(/["""]/g,'').replace(/[*]/g,'').replace(/^\s+|\s+$/g,'').replace(/^[.\s]+|[.\s]+$/g,'');
+}
+
+function titleCase(s){
+  if(!s)return'';
+  return fixEncoding(s).toLowerCase().replace(/(?:^|\s)\S/g,c=>c.toUpperCase()).trim();
+}
+
+// ============ PHONE NORMALIZATION ============
+function inferCountryFromEmail(email){
+  if(!email)return null;
+  const domain=email.toLowerCase();
+  const map={'.com.ar':'AR','.ar':'AR','.com.br':'BR','.br':'BR','.py':'PY','.uy':'UY','.es':'ES','.mx':'MX','.cl':'CL','.co':'CO','.ve':'VE','.pe':'PE','.bo':'BO','.ec':'EC','.us':'US','.uk':'GB','.de':'DE','.fr':'FR','.it':'IT'};
+  for(const[ext,cc]of Object.entries(map)){if(domain.endsWith(ext))return cc}
+  return null;
+}
+
+function normalizePhone(raw,email,defaultCountry){
+  if(!raw)return[];
+  const str=String(raw).replace(/[^\d+\s,;/\-():.]/g,'');
+  // Extract all numeric sequences of 7-15 digits
+  const nums=str.match(/\+?\d[\d\s\-().]{5,18}\d/g)||[];
+  if(!nums.length){
+    const digits=str.replace(/\D/g,'');
+    if(digits.length>=7&&digits.length<=15)nums.push(digits);
+  }
+  const results=[];
+  const country=defaultCountry||'AR';
+  const emailCountry=inferCountryFromEmail(email);
+
+  nums.forEach(n=>{
+    const clean=n.replace(/[\s\-().]/g,'');
+    let parsed=null, doubt=false;
+    try{
+      // Try with + prefix first
+      if(clean.startsWith('+')){
+        parsed=libphonenumber.parsePhoneNumber(clean);
+      }
+      if(!parsed||!parsed.isValid()){
+        parsed=libphonenumber.parsePhoneNumber(clean,emailCountry||country);
+      }
+      if(!parsed||!parsed.isValid()){
+        // Try without country
+        try{parsed=libphonenumber.parsePhoneNumber('+'+clean)}catch{}
+      }
+      if(parsed&&parsed.isValid()){
+        results.push({number:parsed.format('E.164'),country:parsed.country||'??',doubt:false});
+      }else{
+        // Force with default country
+        try{
+          parsed=libphonenumber.parsePhoneNumber(clean,country);
+          if(parsed){results.push({number:parsed.format('E.164'),country:parsed.country||country,doubt:true})}
+          else{results.push({number:'+'+clean.replace(/^0+/,''),country:'??',doubt:true})}
+        }catch{results.push({number:'+'+clean.replace(/^0+/,''),country:'??',doubt:true})}
+      }
+    }catch{
+      if(clean.length>=7&&clean.length<=15){results.push({number:'+'+clean.replace(/^0+/,''),country:'??',doubt:true})}
+    }
+  });
+  return results;
+}
+
+const COUNTRY_FLAGS={'AR':'🇦🇷','BR':'🇧🇷','PY':'🇵🇾','UY':'🇺🇾','BO':'🇧🇴','CL':'🇨🇱','ES':'🇪🇸','MX':'🇲🇽','CO':'🇨🇴','VE':'🇻🇪','PE':'🇵🇪','US':'🇺🇸','GB':'🇬🇧','DE':'🇩🇪','FR':'🇫🇷','IT':'🇮🇹','EC':'🇪🇨','CR':'🇨🇷','PA':'🇵🇦','DO':'🇩🇴','GT':'🇬🇹','HN':'🇭🇳','SV':'🇸🇻','NI':'🇳🇮','CU':'🇨🇺','PR':'🇵🇷','??':'❓'};
+function flag(cc){return COUNTRY_FLAGS[cc]||'🏳️'}
+
+// ============ DEDUPLICATION (Jaro-Winkler) ============
+function jaroWinkler(s1,s2){
+  if(!s1||!s2)return 0;
+  s1=s1.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  s2=s2.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if(s1===s2)return 1;
+  const len1=s1.length,len2=s2.length;
+  if(!len1||!len2)return 0;
+  const range=Math.max(0,Math.floor(Math.max(len1,len2)/2)-1);
+  const m1=new Array(len1).fill(false),m2=new Array(len2).fill(false);
+  let matches=0,transpositions=0;
+  for(let i=0;i<len1;i++){
+    const lo=Math.max(0,i-range),hi=Math.min(i+range+1,len2);
+    for(let j=lo;j<hi;j++){if(!m2[j]&&s1[i]===s2[j]){m1[i]=m2[j]=true;matches++;break}}
+  }
+  if(!matches)return 0;
+  let k=0;
+  for(let i=0;i<len1;i++){if(m1[i]){while(!m2[k])k++;if(s1[i]!==s2[k])transpositions++;k++}}
+  const jaro=(matches/len1+matches/len2+(matches-transpositions/2)/matches)/3;
+  let prefix=0;
+  for(let i=0;i<Math.min(4,Math.min(len1,len2));i++){if(s1[i]===s2[i])prefix++;else break}
+  return jaro+prefix*0.1*(1-jaro);
+}
+
+function deduplicateContacts(arr){
+  const seen=new Map();// phone->idx, email->idx
+  const nameIdx=new Map();
+  const unique=[];
+  let dupCount=0;
+  arr.forEach(c=>{
+    const phone=c.whatsapp?.replace(/\D/g,'')||'';
+    const email=c.email?.toLowerCase().trim()||'';
+    const fullName=(c.nombre+' '+c.apellido).trim().toLowerCase();
+    // Exact duplicate by phone or email
+    if(phone&&seen.has('p:'+phone)){dupCount++;mergeInto(unique[seen.get('p:'+phone)],c);return}
+    if(email&&seen.has('e:'+email)){dupCount++;mergeInto(unique[seen.get('e:'+email)],c);return}
+    // Fuzzy by name
+    if(fullName.length>2){
+      const bucket=fullName.substring(0,2);
+      const candidates=nameIdx.get(bucket)||[];
+      for(const idx of candidates){
+        const existing=unique[idx];
+        const eName=(existing.nombre+' '+existing.apellido).trim().toLowerCase();
+        if(jaroWinkler(fullName,eName)>=0.88){dupCount++;mergeInto(existing,c);return}
+      }
+    }
+    const idx=unique.length;
+    unique.push({...c});
+    if(phone)seen.set('p:'+phone,idx);
+    if(email)seen.set('e:'+email,idx);
+    if(fullName.length>2){const b=fullName.substring(0,2);if(!nameIdx.has(b))nameIdx.set(b,[]);nameIdx.get(b).push(idx)}
+  });
+  return{unique,dupCount};
+}
+
+function mergeInto(target,source){
+  FIELDS.forEach(f=>{if(!target[f]&&source[f])target[f]=source[f]});
+  if(source.confidence>target.confidence)target.confidence=source.confidence;
+}
+
+// ============ IndexedDB ============
+function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open('ContactUnifierDB',1);req.onupgradeneeded=e=>{const db=e.target.result;if(!db.objectStoreNames.contains('state'))db.createObjectStore('state')};req.onsuccess=e=>resolve(e.target.result);req.onerror=e=>reject(e.target.error)})}
+async function saveState(key,val){const db=await openDB();const tx=db.transaction('state','readwrite');tx.objectStore('state').put(val,key);return new Promise(r=>{tx.oncomplete=r})}
+async function loadState(key){const db=await openDB();const tx=db.transaction('state','readonly');const req=tx.objectStore('state').get(key);return new Promise(r=>{req.onsuccess=()=>r(req.result);req.onerror=()=>r(null)})}
+async function clearState(){const db=await openDB();const tx=db.transaction('state','readwrite');tx.objectStore('state').clear()}
+
+// ============ PROCESSING ============
+async function startProcessing(){
+  if(processing)return;
+  if(!loadedFiles.length){log('⚠️ Sin archivos cargados','warn');return}
+  processing=true;paused=false;stopped=false;
+  contacts=[];discarded=[];
+  document.getElementById('btnPause').disabled=false;
+  document.getElementById('btnStop').disabled=false;
+  const useAI=document.getElementById('optAIMap').checked;
+  const useAIClean=document.getElementById('optAIClean').checked;
+  const minConf=parseFloat(document.getElementById('optMinConf').value)||0.7;
+  const defCountry=document.getElementById('optCountry').value||'AR';
+  let totalRows=0,processedRows=0,dupCount=0,doubtCount=0,discardCount=0;
+  const allContacts=[];
+  const mappingCache={};
+
+  log('⚡ Iniciando procesamiento...','info');
+
+  for(let fi=0;fi<loadedFiles.length;fi++){
+    if(stopped)break;
+    while(paused&&!stopped)await new Promise(r=>setTimeout(r,500));
+    const file=loadedFiles[fi];
+    log(`📄 ${file.name} (${fi+1}/${loadedFiles.length})`,'info');
+    updateProgress(fi,loadedFiles.length,`Archivo ${fi+1}/${loadedFiles.length}`);
+
+    let rows;
+    try{rows=parseFileBuffer(file.buffer,file.type,file.name)}
+    catch(e){log(`❌ Error en ${file.name}: ${e.message}`,'err');continue}
+    if(!rows.length){log(`⚠️ ${file.name}: sin datos`,'warn');continue}
+    totalRows+=rows.length;
+
+    // Map columns
+    const headers=Object.keys(rows[0]);
+    const cacheKey=headers.sort().join('|');
+    let mapping=mappingCache[cacheKey];
+    if(!mapping){
+      mapping=mapColumns(headers);
+      if(useAI&&Object.keys(mapping).length<3){
+        log('🤖 Solicitando mapeo IA...','ai');
+        const aiMap=await mapColumnsAI(headers,rows);
+        if(aiMap)mapping={...mapping,...aiMap};
+      }
+      mappingCache[cacheKey]=mapping;
+    }
+    log(`📋 Mapeo: ${Object.entries(mapping).filter(([,v])=>v!=='_skip').map(([k,v])=>`${k}→${v}`).join(', ')}`,'info');
+
+    // Process rows
+    for(let ri=0;ri<rows.length;ri++){
+      if(stopped)break;
+      while(paused&&!stopped)await new Promise(r=>setTimeout(r,500));
+      const row=rows[ri];
+      const contact={nombre:'',apellido:'',empresa:'',cargo:'',whatsapp:'',email:'',confidence:0.8,country:'',doubt:false};
+      let hasData=false;
+
+      for(const[header,field]of Object.entries(mapping)){
+        const val=fixEncoding(String(row[header]||'').trim());
+        if(!val)continue;
+        if(field==='_fullname'){
+          const parts=val.split(/\s+/);
+          contact.nombre=titleCase(parts[0]||'');
+          contact.apellido=titleCase(parts.slice(1).join(' '));
+          hasData=true;
+        }else if(field==='_skip')continue;
+        else if(field==='nombre'){contact.nombre=titleCase(val);hasData=true}
+        else if(field==='apellido'){contact.apellido=titleCase(val);hasData=true}
+        else if(field==='empresa'){contact.empresa=titleCase(val);hasData=true}
+        else if(field==='cargo'){contact.cargo=titleCase(val);hasData=true}
+        else if(field==='email'){
+          if(val.includes('@')){contact.email=val.toLowerCase();hasData=true}
+        }
+        else if(field==='whatsapp'){
+          const phones=normalizePhone(val,contact.email,defCountry);
+          if(phones.length>0){
+            contact.whatsapp=phones[0].number;
+            contact.country=phones[0].country;
+            contact.doubt=phones[0].doubt;
+            hasData=true;
+            // Multiple phones = create extra contacts
+            for(let pi=1;pi<phones.length;pi++){
+              const extra={...contact,whatsapp:phones[pi].number,country:phones[pi].country,doubt:phones[pi].doubt};
+              allContacts.push(extra);
+            }
+          }
+        }
+      }
+      // Handle raw lines (TXT without headers)
+      if(!hasData&&row.raw){
+        const raw=row.raw;
+        const phones=normalizePhone(raw,null,defCountry);
+        if(phones.length>0){
+          contact.whatsapp=phones[0].number;contact.country=phones[0].country;contact.doubt=phones[0].doubt;hasData=true;
+          for(let pi=1;pi<phones.length;pi++){allContacts.push({...contact,whatsapp:phones[pi].number,country:phones[pi].country,doubt:phones[pi].doubt})}
+        }
+        // Try extract name from raw
+        const namePart=raw.replace(/[\d+\-().,;:\/]/g,'').trim();
+        if(namePart.length>1){const ps=namePart.split(/\s+/);contact.nombre=titleCase(ps[0]||'');contact.apellido=titleCase(ps.slice(1).join(' '));hasData=true}
+      }
+
+      if(!hasData){discardCount++;continue}
+      if(contact.doubt)doubtCount++;
+      allContacts.push(contact);
+      processedRows++;
+
+      // Save to IDB every 100
+      if(processedRows%100===0){
+        await saveState('contacts',allContacts);
+        await saveState('progress',{fi,ri,total:loadedFiles.length});
+      }
+      // Update live preview
+      if(processedRows%10===0){
+        updateLiveTable(allContacts.slice(-12));
+        updateCounters(processedRows,0,doubtCount,discardCount);
+      }
+    }
+  }
+
+  if(stopped){log('🛑 Procesamiento detenido','warn');await saveState('interrupted',true)}
+  else{
+    log(`📊 Deduplicando ${allContacts.length} contactos...`,'info');
+    const dedupResult=deduplicateContacts(allContacts);
+    dupCount=dedupResult.dupCount;
+    contacts=dedupResult.unique;
+    discarded=allContacts.filter(c=>!c.whatsapp&&!c.email);
+
+    updateCounters(contacts.length,dupCount,doubtCount,discardCount);
+    log(`✅ Completado: ${contacts.length} únicos, ${dupCount} duplicados eliminados`,'ok');
+    await saveState('contacts',contacts);
+    await saveState('discarded',discarded);
+    await saveState('completed',true);
+    await saveState('interrupted',false);
+  }
+  processing=false;
+  document.getElementById('btnPause').disabled=true;
+  document.getElementById('btnStop').disabled=true;
+}
+
+function togglePause(){paused=!paused;document.getElementById('btnPause').textContent=paused?'▶ Reanudar':'⏸ Pausar';log(paused?'⏸ Pausado':'▶ Reanudado','info')}
+function stopProcessing(){stopped=true;log('🛑 Deteniendo...','warn')}
+async function processAndClose(){
+  log('🌙 Modo nocturno: procesará y guardará en IndexedDB','info');
+  await startProcessing();
+}
+async function resetAll(){
+  contacts=[];discarded=[];loadedFiles=[];
+  await clearState();
+  document.getElementById('logBox').innerHTML='';
+  document.getElementById('liveTable').innerHTML='';
+  document.getElementById('consensusPanel').innerHTML='';
+  updateCounters(0,0,0,0);updateProgress(0,1,'Listo');
+  renderFileList();
+  log('🔄 Reset completo','info');
+}
+
+function updateProgress(cur,total,text){
+  const pct=Math.round(cur/total*100);
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressPct').textContent=pct+'%';
+  document.getElementById('progressText').textContent=text||'';
+}
+
+function updateCounters(valid,dup,doubt,discard){
+  document.getElementById('cntTotal').textContent=valid;
+  document.getElementById('cntValid').textContent=valid;
+  document.getElementById('cntDup').textContent=dup;
+  document.getElementById('cntDoubt').textContent=doubt;
+  document.getElementById('cntDiscard').textContent=discard;
+}
+
+function updateLiveTable(items){
+  const el=document.getElementById('liveTable');
+  if(!items.length){el.innerHTML='';return}
+  el.innerHTML=`<table><thead><tr><th>Nombre</th><th>Apellido</th><th>WhatsApp</th><th>País</th><th>Email</th></tr></thead>
+    <tbody>${items.map(c=>`<tr><td>${c.nombre}</td><td>${c.apellido}</td><td style="font-family:monospace;font-size:.7rem">${c.whatsapp}</td><td>${flag(c.country)}</td><td style="font-size:.7rem">${c.email}</td></tr>`).join('')}</tbody></table>`;
+}
+
+// ============ RESULTS ============
+function setFilter(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderResults();
+}
+
+function renderResults(){
+  const search=(document.getElementById('searchInput')?.value||'').toLowerCase();
+  let filtered=contacts.filter(c=>{
+    if(search){const s=Object.values(c).join(' ').toLowerCase();if(!s.includes(search))return false}
+    switch(currentFilter){
+      case'whatsapp':return!!c.whatsapp;
+      case'email':return!!c.email;
+      case'lowconf':return c.confidence<0.5;
+      case'doubt':return c.doubt;
+      case'nowhatsapp':return!c.whatsapp;
+      default:return true;
+    }
+  });
+
+  // Summary
+  const withWA=contacts.filter(c=>c.whatsapp).length;
+  const withEmail=contacts.filter(c=>c.email).length;
+  const doubtful=contacts.filter(c=>c.doubt).length;
+  // Country distribution
+  const countries={};contacts.forEach(c=>{const cc=c.country||'??';countries[cc]=(countries[cc]||0)+1});
+  const countryStr=Object.entries(countries).sort((a,b)=>b[1]-a[1]).map(([cc,n])=>`${flag(cc)}${n}`).join(' ');
+
+  document.getElementById('resultsSummary').innerHTML=`<div class="flex" style="gap:16px;font-size:.85rem">
+    <span><strong>${contacts.length}</strong> únicos</span>
+    <span>📱 ${withWA} WhatsApp</span>
+    <span>📧 ${withEmail} Email</span>
+    <span>⚠️ ${doubtful} dudosos</span>
+  </div><div style="margin-top:6px;font-size:.8rem">${countryStr}</div>`;
+
+  const wrap=document.getElementById('resultsTableWrap');
+  if(!filtered.length){wrap.innerHTML='<p style="color:var(--muted);padding:20px">Sin resultados</p>';return}
+  wrap.innerHTML=`<table><thead><tr><th>Nombre</th><th>Apellido</th><th>Empresa</th><th>Cargo</th><th>WhatsApp</th><th>País</th><th>Email</th><th>Conf.</th><th></th></tr></thead>
+    <tbody>${filtered.map((c,i)=>{
+      const ci=contacts.indexOf(c);
+      const cls=c.confidence>=0.8?'conf-high':c.confidence>=0.5?'conf-med':'conf-low';
+      return`<tr class="${cls}"><td>${c.nombre}</td><td>${c.apellido}</td><td>${c.empresa}</td><td>${c.cargo}</td>
+        <td style="font-family:monospace;font-size:.7rem">${c.whatsapp}</td><td>${flag(c.country)}${c.doubt?' ⚠️':''}</td>
+        <td style="font-size:.75rem">${c.email}</td><td>${(c.confidence||0).toFixed(2)}</td>
+        <td><button class="btn btn-secondary" style="padding:2px 8px" onclick="editContact(${ci})">✏️</button></td></tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function editContact(idx){
+  editingIdx=idx;
+  const c=contacts[idx];
+  document.getElementById('editFields').innerHTML=FIELDS.map(f=>`<div style="margin-bottom:8px">
+    <label style="font-size:.8rem;font-weight:600">${FIELD_LABELS[f]}</label>
+    <input type="text" id="edit_${f}" value="${c[f]||''}">
+  </div>`).join('');
+  document.getElementById('editModal').classList.add('show');
+}
+
+function saveEdit(){
+  FIELDS.forEach(f=>{contacts[editingIdx][f]=document.getElementById('edit_'+f).value.trim()});
+  closeModal('editModal');renderResults();
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+
+function reviewDoubtful(){
+  const doubtful=contacts.filter(c=>c.doubt||c.confidence<0.5);
+  if(!doubtful.length){log('✅ Sin contactos dudosos','ok');return}
+  const list=document.getElementById('reviewList');
+  list.innerHTML=doubtful.map((c,i)=>{
+    const ci=contacts.indexOf(c);
+    return`<div class="card" style="margin-bottom:8px"><div class="flex" style="justify-content:space-between">
+      <span><strong>${c.nombre} ${c.apellido}</strong> · ${c.whatsapp} · ${flag(c.country)}${c.doubt?' ⚠️':''}</span>
+      <div class="flex">
+        <button class="btn btn-secondary" style="padding:2px 8px;font-size:.75rem" onclick="editContact(${ci});closeModal('reviewModal')">✏️ Editar</button>
+        <button class="btn btn-danger" style="padding:2px 8px;font-size:.75rem" onclick="discardContact(${ci})">🗑</button>
+      </div></div></div>`;
+  }).join('');
+  document.getElementById('reviewModal').classList.add('show');
+}
+
+function discardContact(idx){
+  discarded.push(contacts.splice(idx,1)[0]);
+  reviewDoubtful();renderResults();
+}
+
+// ============ EXPORT ============
+function dateStr(){const d=new Date();return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`}
+
+function renderExportSummary(){
+  document.getElementById('exportSummary').innerHTML=`<p style="font-size:.9rem"><strong>${contacts.length}</strong> contactos listos · <strong>${discarded.length}</strong> descartados</p>`;
+}
+
+function exportCSV(){
+  const rows=[FIELDS.map(f=>FIELD_LABELS[f]),...contacts.map(c=>FIELDS.map(f=>c[f]||''))];
+  const csv='\uFEFF'+rows.map(r=>r.map(v=>`"${(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  download(csv,`contactos_limpios_${dateStr()}.csv`,'text/csv;charset=utf-8');
+}
+
+function exportXLSX(){
+  const wb=XLSX.utils.book_new();
+  const ws1=XLSX.utils.json_to_sheet(contacts.map(c=>{const o={};FIELDS.forEach(f=>o[FIELD_LABELS[f]]=c[f]||'');return o}));
+  XLSX.utils.book_append_sheet(wb,ws1,'Contactos Limpios');
+  const ws2=XLSX.utils.json_to_sheet(discarded.map(c=>{const o={};FIELDS.forEach(f=>o[FIELD_LABELS[f]]=c[f]||'');return o}));
+  XLSX.utils.book_append_sheet(wb,ws2,'Descartados');
+  XLSX.writeFile(wb,`contactos_limpios_${dateStr()}.xlsx`);
+}
+
+function exportVCF(){
+  const vcf=contacts.map(c=>{
+    let v='BEGIN:VCARD\nVERSION:3.0\n';
+    v+=`N:${c.apellido||''};${c.nombre||''};;;\n`;
+    v+=`FN:${c.nombre||''} ${c.apellido||''}\n`;
+    if(c.empresa)v+=`ORG:${c.empresa}\n`;
+    if(c.cargo)v+=`TITLE:${c.cargo}\n`;
+    if(c.whatsapp)v+=`TEL;TYPE=CELL:${c.whatsapp}\n`;
+    if(c.email)v+=`EMAIL:${c.email}\n`;
+    v+='END:VCARD';return v;
+  }).join('\n');
+  download(vcf,`contactos_limpios_${dateStr()}.vcf`,'text/vcard');
+}
+
+function exportJSON(){
+  const data=contacts.map(c=>{const o={};FIELDS.forEach(f=>o[FIELD_LABELS[f]]=c[f]||'');return o});
+  download(JSON.stringify(data,null,2),`contactos_limpios_${dateStr()}.json`,'application/json');
+}
+
+function download(content,name,type){
+  const blob=new Blob([content],{type});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+}
+
+// ============ RESUME CHECK ============
+async function checkResume(){
+  try{
+    const completed=await loadState('completed');
+    const interrupted=await loadState('interrupted');
+    const saved=await loadState('contacts');
+    if(completed&&saved){
+      contacts=saved;
+      discarded=await loadState('discarded')||[];
+      const banner=document.getElementById('resumeBanner');
+      banner.className='banner banner-green';
+      banner.innerHTML='✅ Procesamiento anterior completado. Los resultados están cargados.';
+      banner.style.display='block';
+      updateCounters(contacts.length,0,contacts.filter(c=>c.doubt).length,0);
+    }else if(interrupted&&saved){
+      const banner=document.getElementById('resumeBanner');
+      banner.className='banner banner-yellow';
+      banner.innerHTML='⚠️ Procesamiento anterior interrumpido. <button class="btn btn-primary" style="margin-left:8px" onclick="resumeProcessing()">Continuar</button>';
+      banner.style.display='block';
+    }
+  }catch{}
+}
+
+async function resumeProcessing(){
+  const saved=await loadState('contacts');
+  if(saved){contacts=saved;log(`📂 Restaurados ${contacts.length} contactos`,'ok')}
+  document.getElementById('resumeBanner').style.display='none';
+  // Could continue from saved progress point
+}
+
+// ============ PUTER.JS LOADER ============
+function loadPuter(){
+  const s=document.createElement('script');s.src='https://js.puter.com/v2/';
+  s.onload=()=>log('✅ Puter.js cargado','ok');
+  s.onerror=()=>log('⚠️ Puter.js no disponible','warn');
+  document.head.appendChild(s);
+}
+
+// ============ INIT ============
+renderGateways();
+renderFileList();
+checkResume();
+loadPuter();
+log('🟢 ContactUnifier AI Pro listo','ok');
+</script>
+</body>
+</html>
